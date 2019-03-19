@@ -34,55 +34,39 @@ class LeNet(nn.Module):
     def __init__(self):
         super(LeNet, self).__init__()
         self.block1 = nn.Sequential(
-            nn.Conv2d(1, 16, kernel_size=(4, 20), stride=(1, 10), padding=(2,10)),
+            nn.Conv2d(1, 30, kernel_size=(1, 40)),
             nn.ReLU(),
-            nn.Dropout(0.3),
-            nn.MaxPool2d(kernel_size=(13, 23), stride=(1, 6), padding=(1,6)),
-            nn.BatchNorm2d(16),
+            nn.Dropout(0.5),
+            nn.BatchNorm2d(30),
         )
         self.block2 = nn.Sequential(
-            nn.Conv2d(16, 8, kernel_size=5, padding=0),
+            nn.Conv3d(1, 4, kernel_size=(5, 22, 1)),
             nn.ReLU(),
-            nn.Dropout(0.3),
-            nn.MaxPool2d(kernel_size=3, stride=2, padding=0),
-            nn.BatchNorm2d(8),
+            nn.Dropout(0.5),
         )
-
         self.block3 = nn.Sequential(
-            nn.Conv2d(8, 4, kernel_size=5, padding=0),
-            nn.Softmax(dim=1),
+            nn.AvgPool2d(kernel_size=(1, 50)),
         )
-
-        """
-        self.block3 = nn.Sequential(
-            nn.Conv2d(32, 16, kernel_size=5, padding=2),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
-            nn.BatchNorm2d(16),
-        )
-
         self.block4 = nn.Sequential(
-            nn.Conv2d(16, 8, kernel_size=4, padding=0),
-            nn.ReLU(),
-            nn.BatchNorm2d(8),
-        )
-        self.block5 = nn.Sequential(
-            nn.Conv2d(8, 4, kernel_size=1, padding=0),
+            torch.nn.Linear(26*19,1),
             nn.Softmax(dim=1),
         )
-        """
 
     def forward(self, x, viz=False):
-
+        N, _, _, _ = x.size()
         x = self.block1(x)
+        x = x.unsqueeze(1)
         x = self.block2(x)
+        x = x.squeeze()
         x = self.block3(x)
+        x = x.view(N,4,-1)
+        x = self.block4(x)
         return flatten(x)
 
 ############################################################################
 #                             Hyper parameters                             #
 ############################################################################
-epochs = 40
+epochs = 60
 batch_size = 64 
 
 
@@ -104,8 +88,8 @@ person_train_valid = np.load("person_train_valid.npy")
 X_train_valid = np.load("X_train_valid.npy")
 y_train_valid = np.load("y_train_valid.npy")
 person_test = np.load("person_test.npy")
-X_train = X_train_valid.reshape((2115, 1, 25, 1000))
-X_test = X_test.reshape((443, 1, 25, 1000))
+X_train = X_train_valid.reshape((2115, 1, 25, 1000))[:,:,:22,:]
+X_test = X_test.reshape((443, 1, 25, 1000))[:,:,:22,:]
 
 trainset = torch.utils.data.TensorDataset(torch.from_numpy(X_train).float(), torch.from_numpy(y_train_valid - 769).long())
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
@@ -120,7 +104,7 @@ if cuda:
 ############################################################################
 #                                Optimization                              #
 ############################################################################
-lr = 2e-4
+lr = 1e-3
 weight_decay = 1e-3
 betas = (0.9, 0.999)
 criterion = nn.CrossEntropyLoss()
